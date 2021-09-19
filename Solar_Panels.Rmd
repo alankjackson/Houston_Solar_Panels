@@ -1,0 +1,88 @@
+---
+title: "SolarPanels"
+author: "Alan Jackson"
+date: "9/18/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+library(tidyverse)
+
+
+path <- "/home/ajackson/Dropbox/Rprojects/CityPermits"
+
+googlecrs <- 4326
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Read in permit data
+
+Read in, filter, and combine the permit files
+
+
+```{r input}
+
+folderfiles <- list.files(path, pattern = "^20.*rds", full.names = TRUE)
+
+df <- folderfiles %>% 
+    #set_names() %>% 
+    map_dfr(.f = read_rds) %>% 
+    filter(str_detect(Comments, "SOLAR")) %>% 
+    mutate(Permit_Date=lubridate::ymd(Permit_Date))
+  
+
+```
+
+##  Hypothesis
+
+I suspect that after the February 14, 2021 freeze that many people ordered solar
+panels. Let's look at the data.
+
+```{r orders by time}
+
+df %>% 
+  mutate(ByMonth=lubridate::floor_date(Permit_Date, "month")) %>%
+    group_by(ByMonth) %>%
+  summarise(MonthlyTotal=n()) %>%
+  ggplot(aes(x=ByMonth, y=MonthlyTotal))+
+  geom_point()+
+  geom_smooth(method="lm") +
+  geom_vline(xintercept=lubridate::ymd("2021-02-14")) +
+  geom_text(aes(x=lubridate::ymd("2021-02-14"), y=0, label="The Big Freeze")) +
+  labs(title="Residential Solar Panel Permits in Houston",
+       subtitle="Monthly totals", 
+       x="Year", 
+       y="Month Total")
+  
+
+
+
+```
+
+
+
+
+##  by zip code
+
+```{r by zip}
+
+df %>% 
+  group_by(Zip) %>% 
+    summarise(Freq=n()) %>% 
+  arrange(desc(Freq)) %>%
+  slice(1:20) %>% 
+  ggplot(aes(x=reorder(Zip, -Freq), y=Freq)) + 
+  geom_bar(stat='identity') +
+  labs(x="Zipcode",
+       y="Number of Permits since 2018",
+       title="Solar Panel Permits in Houston Zipcodes",
+       subtitle="Top twenty zipcodes only")
+
+
+
+
+```
+
+
